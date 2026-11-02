@@ -44652,119 +44652,436 @@ end)
 -------------------------------------------------------------------------------
 local statusLabel
 do
+    local TweenService = game:GetService("TweenService")
+    local UIS = game:GetService("UserInputService")
+
+    -- ============ PALETA PREMIUM ============
+    local C_BG1       = Color3.fromRGB(28, 18, 44)
+    local C_BG2       = Color3.fromRGB(14, 8, 24)
+    local C_PINK      = Color3.fromRGB(240, 100, 180)
+    local C_PURPLE    = Color3.fromRGB(150, 100, 240)
+    local C_PINK_LT   = Color3.fromRGB(255, 170, 220)
+    local C_TEXT      = Color3.fromRGB(248, 240, 255)
+    local C_TEXT_DIM  = Color3.fromRGB(170, 150, 200)
+    local C_INPUT     = Color3.fromRGB(36, 22, 54)
+    local C_CARD      = Color3.fromRGB(32, 20, 48)
+
+    local RARITY_COL = {
+        ["Ancient"]   = Color3.fromRGB(255, 175, 80),
+        ["Godly"]     = Color3.fromRGB(255, 120, 200),
+        ["Legendary"] = Color3.fromRGB(120, 200, 255),
+        ["Rare"]      = Color3.fromRGB(120, 240, 150),
+        ["Uncommon"]  = Color3.fromRGB(200, 200, 210),
+        ["Common"]    = Color3.fromRGB(190, 190, 200),
+        ["Classic"]   = Color3.fromRGB(160, 160, 175),
+        ["Unique"]    = Color3.fromRGB(200, 140, 255),
+    }
+    local function rcol(r) return RARITY_COL[r] or C_TEXT_DIM end
+
+    -- ============ HELPERS ============
+    local function corner(p, r)
+        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, r or 10); c.Parent = p; return c
+    end
+    local function grad(p, c1, c2, rot)
+        local g = Instance.new("UIGradient"); g.Color = ColorSequence.new(c1, c2)
+        g.Rotation = rot or 90; g.Parent = p; return g
+    end
+    local function stroke(p, col, th, tr)
+        local s = Instance.new("UIStroke"); s.Color = col; s.Thickness = th or 1
+        s.Transparency = tr or 0.3
+        s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        s.Parent = p; return s
+    end
+    local function pad(p, t, r, b, l)
+        local pd = Instance.new("UIPadding")
+        pd.PaddingTop = UDim.new(0, t or 0); pd.PaddingRight = UDim.new(0, r or 0)
+        pd.PaddingBottom = UDim.new(0, b or 0); pd.PaddingLeft = UDim.new(0, l or 0)
+        pd.Parent = p; return pd
+    end
+
+    -- ============ SCREEN GUI ============
     local gui = Instance.new("ScreenGui")
-    gui.Name = "MM2Spawner"; gui.ResetOnSpawn = false; gui.IgnoreGuiInset = true; gui.DisplayOrder = 999999
+    gui.Name = "MM2Spawner"
+    gui.ResetOnSpawn = false
+    gui.IgnoreGuiInset = true
+    gui.DisplayOrder = 999999
     pcall(function() gui.Parent = (gethui and gethui()) or game:GetService("CoreGui") end)
     if not gui.Parent then gui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
     SELF.gui = gui
-    local root = Instance.new("Frame")
-    root.Size = UDim2.fromOffset(280, 188); root.Position = UDim2.new(0, 20, 0.5, -94)
-    root.BackgroundColor3 = Color3.fromRGB(20, 20, 27); root.BorderSizePixel = 0
-    root.Active = true; root.Draggable = true; root.Parent = gui
-    Instance.new("UICorner", root).CornerRadius = UDim.new(0, 10)
-    local stk = Instance.new("UIStroke", root); stk.Color = Color3.fromRGB(120, 90, 230); stk.Thickness = 1.5
+
+    -- ============ TOGGLE FLUTUANTE ============
+    -- botão real (área de toque grande, invisível)
+local toggle = Instance.new("TextButton")
+toggle.Name = "Toggle"
+toggle.Size = UDim2.fromOffset(96, 96)     -- área de toque GIGANTE
+toggle.AnchorPoint = Vector2.new(1, 1)
+toggle.Position = UDim2.new(1, -8, 1, -8)  -- canto inferior direito
+toggle.BackgroundTransparency = 1          -- invisível
+toggle.Text = ""
+toggle.AutoButtonColor = false
+toggle.Parent = gui
+
+-- visual (pequeno e bonito, dentro do botão)
+local toggleVis = Instance.new("Frame")
+toggleVis.Name = "Vis"
+toggleVis.Size = UDim2.fromOffset(56, 56)
+toggleVis.AnchorPoint = Vector2.new(0.5, 0.5)
+toggleVis.Position = UDim2.new(0.5, 0, 0.5, 0)
+toggleVis.BackgroundColor3 = C_PINK
+toggleVis.BorderSizePixel = 0
+toggleVis.Parent = toggle
+corner(toggleVis, 16)
+grad(toggleVis, C_PINK, C_PURPLE, 135)
+stroke(toggleVis, C_PINK_LT, 1.5, 0.15)
+
+local toggleIcon = Instance.new("TextLabel")
+toggleIcon.Size = UDim2.fromScale(1, 1)
+toggleIcon.BackgroundTransparency = 1
+toggleIcon.Text = "✦"
+toggleIcon.Font = Enum.Font.GothamBold
+toggleIcon.TextSize = 24
+toggleIcon.TextColor3 = Color3.new(1, 1, 1)
+toggleIcon.Parent = toggleVis
+
+    -- ============ PAINEL PRINCIPAL ============
+    local viewportH = (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize.Y) or 600
+    local SCROLL_H  = math.clamp(viewportH - 280, 200, 340)
+    local BASE_H    = 182
+
+    local main = Instance.new("Frame")
+    main.Name = "Main"
+    main.Size = UDim2.fromOffset(232, BASE_H)
+    main.Position = UDim2.new(0, 12, 0, 68)
+    main.BackgroundColor3 = C_BG1
+    main.BorderSizePixel = 0
+    main.ClipsDescendants = true
+    main.Visible = false
+    main.Active = true
+    main.Parent = gui
+    corner(main, 16)
+    stroke(main, C_PURPLE, 1.5, 0.25)
+    grad(main, C_BG1, C_BG2, 90)
+
+    local mainScale = Instance.new("UIScale"); mainScale.Scale = 1; mainScale.Parent = main
+
+    local hl = Instance.new("Frame")
+    hl.Size = UDim2.new(1, 0, 0, 70)
+    hl.BackgroundColor3 = C_PINK_LT
+    hl.BackgroundTransparency = 0.9
+    hl.BorderSizePixel = 0
+    hl.Parent = main
+    corner(hl, 16)
+
+    -- ---- HEADER (arrastável) ----
+    local header = Instance.new("Frame")
+    header.Size = UDim2.new(1, -20, 0, 26)
+    header.Position = UDim2.fromOffset(10, 8)
+    header.BackgroundTransparency = 1
+    header.Parent = main
+
+    local brandIcon = Instance.new("TextLabel")
+    brandIcon.Size = UDim2.fromOffset(22, 22)
+    brandIcon.Position = UDim2.fromOffset(0, 2)
+    brandIcon.BackgroundColor3 = C_PINK
+    brandIcon.Text = "✦"
+    brandIcon.Font = Enum.Font.GothamBold
+    brandIcon.TextSize = 13
+    brandIcon.TextColor3 = Color3.new(1, 1, 1)
+    brandIcon.Parent = header
+    corner(brandIcon, 6)
+    grad(brandIcon, C_PINK, C_PURPLE, 135)
+
     local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, -16, 0, 24); title.Position = UDim2.fromOffset(12, 8); title.BackgroundTransparency = 1
-    title.Font = Enum.Font.GothamBold; title.TextSize = 15; title.TextColor3 = Color3.fromRGB(235, 228, 255)
-    title.TextXAlignment = Enum.TextXAlignment.Left; title.Text = "MM2 Spawner"; title.Parent = root
-    local box = Instance.new("TextBox")
-    box.Size = UDim2.new(1, -24, 0, 30); box.Position = UDim2.fromOffset(12, 38)
-    box.BackgroundColor3 = Color3.fromRGB(35, 35, 46); box.BorderSizePixel = 0
-    box.Font = Enum.Font.Gotham; box.TextSize = 14; box.TextColor3 = Color3.fromRGB(255, 255, 255)
-    box.PlaceholderText = "weapon name (e.g. Seer, Darkbringer)"; box.PlaceholderColor3 = Color3.fromRGB(125, 125, 140)
-    box.ClearTextOnFocus = false; box.Text = ""; box.Parent = root
-    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
-    local spawnBtn = Instance.new("TextButton")
-    spawnBtn.Size = UDim2.new(1, -24, 0, 30); spawnBtn.Position = UDim2.fromOffset(12, 74)
-    spawnBtn.BackgroundColor3 = Color3.fromRGB(95, 70, 200); spawnBtn.BorderSizePixel = 0
-    spawnBtn.Font = Enum.Font.GothamBold; spawnBtn.TextSize = 14; spawnBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    spawnBtn.Text = "Spawn"; spawnBtn.Parent = root
-    Instance.new("UICorner", spawnBtn).CornerRadius = UDim.new(0, 6)
-    local browseBtn = Instance.new("TextButton")
-    browseBtn.Size = UDim2.new(1, -24, 0, 26); browseBtn.Position = UDim2.fromOffset(12, 110)
-    browseBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 60); browseBtn.BorderSizePixel = 0
-    browseBtn.Font = Enum.Font.GothamMedium; browseBtn.TextSize = 13; browseBtn.TextColor3 = Color3.fromRGB(220,215,235)
-    browseBtn.Text = "Browse all weapons (" .. #weaponList .. ")  v"; browseBtn.Parent = root
-    Instance.new("UICorner", browseBtn).CornerRadius = UDim.new(0, 6)
-    statusLabel = Instance.new("TextLabel")
-    statusLabel.Size = UDim2.new(1, -24, 0, 34); statusLabel.Position = UDim2.fromOffset(12, 144)
-    statusLabel.BackgroundTransparency = 1; statusLabel.Font = Enum.Font.Gotham; statusLabel.TextSize = 12
-    statusLabel.TextColor3 = Color3.fromRGB(190,190,205); statusLabel.TextXAlignment = Enum.TextXAlignment.Left
-    statusLabel.TextYAlignment = Enum.TextYAlignment.Top; statusLabel.TextWrapped = true
-    statusLabel.Text = "Type a name or Browse, then equip it in your MM2 inventory."; statusLabel.Parent = root
-    local panel = Instance.new("Frame")
-    panel.Size = UDim2.fromOffset(280, 320); panel.Position = UDim2.new(0, 0, 1, 6)
-    panel.BackgroundColor3 = Color3.fromRGB(20,20,27); panel.BorderSizePixel = 0; panel.Visible = false; panel.Parent = root
-    Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 10)
-    local pstk = Instance.new("UIStroke", panel); pstk.Color = Color3.fromRGB(120,90,230); pstk.Thickness = 1.5
+    title.Size = UDim2.new(1, -60, 1, 0)
+    title.Position = UDim2.fromOffset(30, 0)
+    title.BackgroundTransparency = 1
+    title.Text = "MM2 SPAWNER"
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 13
+    title.TextColor3 = C_TEXT
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = header
+
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.Size = UDim2.fromOffset(22, 22)
+    closeBtn.Position = UDim2.new(1, -22, 0, 2)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(45, 28, 68)
+    closeBtn.BorderSizePixel = 0
+    closeBtn.Text = "✕"
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.TextSize = 12
+    closeBtn.TextColor3 = C_TEXT
+    closeBtn.AutoButtonColor = false
+    closeBtn.Parent = header
+    corner(closeBtn, 7)
+
+    -- ---- SEARCH ----
     local search = Instance.new("TextBox")
-    search.Size = UDim2.new(1, -24, 0, 28); search.Position = UDim2.fromOffset(12, 10)
-    search.BackgroundColor3 = Color3.fromRGB(35,35,46); search.BorderSizePixel = 0
-    search.Font = Enum.Font.Gotham; search.TextSize = 13; search.TextColor3 = Color3.fromRGB(255,255,255)
-    search.PlaceholderText = "search..."; search.PlaceholderColor3 = Color3.fromRGB(125,125,140)
-    search.ClearTextOnFocus = false; search.Text = ""; search.Parent = panel
-    Instance.new("UICorner", search).CornerRadius = UDim.new(0, 6)
+    search.Size = UDim2.new(1, -20, 0, 30)
+    search.Position = UDim2.fromOffset(10, 40)
+    search.BackgroundColor3 = C_INPUT
+    search.BorderSizePixel = 0
+    search.Font = Enum.Font.Gotham
+    search.TextSize = 12
+    search.TextColor3 = C_TEXT
+    search.PlaceholderText = "⌕  weapon name..."
+    search.PlaceholderColor3 = C_TEXT_DIM
+    search.Text = ""
+    search.TextXAlignment = Enum.TextXAlignment.Left
+    search.ClearTextOnFocus = false
+    search.Parent = main
+    corner(search, 8)
+    pad(search, 0, 8, 0, 10)
+    stroke(search, C_PURPLE, 1, 0.55)
+
+    -- ---- SPAWN BUTTON ----
+    local spawnBtn = Instance.new("TextButton")
+    spawnBtn.Size = UDim2.new(1, -20, 0, 30)
+    spawnBtn.Position = UDim2.fromOffset(10, 76)
+    spawnBtn.BackgroundColor3 = C_PINK
+    spawnBtn.BorderSizePixel = 0
+    spawnBtn.Font = Enum.Font.GothamBold
+    spawnBtn.TextSize = 13
+    spawnBtn.TextColor3 = Color3.new(1, 1, 1)
+    spawnBtn.Text = "⚡ SPAWN"
+    spawnBtn.AutoButtonColor = false
+    spawnBtn.Parent = main
+    corner(spawnBtn, 8)
+    grad(spawnBtn, C_PINK, C_PURPLE, 135)
+    stroke(spawnBtn, C_PINK_LT, 1, 0.25)
+
+    -- ---- BROWSE BUTTON ----
+    local browseBtn = Instance.new("TextButton")
+    browseBtn.Size = UDim2.new(1, -20, 0, 26)
+    browseBtn.Position = UDim2.fromOffset(10, 112)
+    browseBtn.BackgroundColor3 = C_INPUT
+    browseBtn.BorderSizePixel = 0
+    browseBtn.Font = Enum.Font.GothamMedium
+    browseBtn.TextSize = 11
+    browseBtn.TextColor3 = C_TEXT
+    browseBtn.Text = ("☰  Browse all weapons (%d)  ▾"):format(#weaponList)
+    browseBtn.AutoButtonColor = false
+    browseBtn.Parent = main
+    corner(browseBtn, 8)
+    stroke(browseBtn, C_PURPLE, 1, 0.55)
+
+    -- ---- STATUS ----
+    statusLabel = Instance.new("TextLabel")
+    statusLabel.Size = UDim2.new(1, -20, 0, 20)
+    statusLabel.Position = UDim2.fromOffset(10, 144)
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Font = Enum.Font.Gotham
+    statusLabel.TextSize = 10
+    statusLabel.TextColor3 = C_TEXT_DIM
+    statusLabel.Text = "Type a name or browse →"
+    statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+    statusLabel.TextWrapped = false
+    statusLabel.TextTruncate = Enum.TextTruncate.AtEnd
+    statusLabel.Parent = main
+
+    -- ---- SCROLL (lista de armas) ----
     local scroll = Instance.new("ScrollingFrame")
-    scroll.Size = UDim2.new(1, -20, 1, -48); scroll.Position = UDim2.fromOffset(10, 44)
-    scroll.BackgroundColor3 = Color3.fromRGB(14,14,19); scroll.BackgroundTransparency = 0.3
-    scroll.BorderSizePixel = 0; scroll.ScrollBarThickness = 6; scroll.ScrollBarImageColor3 = Color3.fromRGB(120,90,230)
-    scroll.CanvasSize = UDim2.new(0,0,0,0); scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y; scroll.Parent = panel
-    Instance.new("UICorner", scroll).CornerRadius = UDim.new(0, 6)
-    local layout = Instance.new("UIListLayout"); layout.Padding = UDim.new(0, 2); layout.SortOrder = Enum.SortOrder.LayoutOrder; layout.Parent = scroll
-    local ppad = Instance.new("UIPadding"); ppad.PaddingTop = UDim.new(0,3); ppad.PaddingBottom = UDim.new(0,3); ppad.PaddingLeft = UDim.new(0,3); ppad.PaddingRight = UDim.new(0,3); ppad.Parent = scroll
+    scroll.Name = "Scroll"
+    scroll.Size = UDim2.new(1, -12, 0, SCROLL_H)
+    scroll.Position = UDim2.fromOffset(6, BASE_H)
+    scroll.BackgroundTransparency = 1
+    scroll.BorderSizePixel = 0
+    scroll.ScrollBarThickness = 4
+    scroll.ScrollBarImageColor3 = C_PINK
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    scroll.ScrollingDirection = Enum.ScrollingDirection.Y
+    scroll.Visible = false
+    scroll.Parent = main
+    local listLayout = Instance.new("UIListLayout")
+    listLayout.Padding = UDim.new(0, 4)
+    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    listLayout.Parent = scroll
+    pad(scroll, 2, 2, 6, 2)
+
+    -- ============ EXPAND / COLLAPSE ============
+    local expanded = false
+    local function setExpanded(v)
+        expanded = v
+        scroll.Visible = v
+        browseBtn.Text = ("☰  Browse all weapons (%d)  %s"):format(#weaponList, v and "▴" or "▾")
+        local targetH = v and (BASE_H + SCROLL_H) or BASE_H
+        TweenService:Create(main, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            { Size = UDim2.fromOffset(232, targetH) }):Play()
+    end
+
+    -- ============ SPAWN HELPERS ============
     local function feedback(key)
         if MESHES[key] then
-            statusLabel.TextColor3 = Color3.fromRGB(150,230,170)
-            statusLabel.Text = "Spawned " .. key .. (MESHES[key].Model and " [full]" or "") .. " — equip it in your inventory (rarity tab)."
+            statusLabel.TextColor3 = Color3.fromRGB(150, 230, 170)
+            statusLabel.Text = "✓ Spawned " .. key
         else
-            statusLabel.TextColor3 = Color3.fromRGB(240,200,120)
-            statusLabel.Text = "Spawned " .. key .. " (no mesh data)."
+            statusLabel.TextColor3 = Color3.fromRGB(240, 200, 120)
+            statusLabel.Text = "Spawned " .. key .. " (no mesh)"
         end
     end
+
     local function spawnFromBox()
-        local key = resolveInput(box.Text)
-        if not key then statusLabel.TextColor3 = Color3.fromRGB(255,120,120); statusLabel.Text = "Unknown: \"" .. tostring(box.Text) .. "\" — use Browse."; return end
+        local key = resolveInput(search.Text)
+        if not key then
+            statusLabel.TextColor3 = Color3.fromRGB(255, 120, 120)
+            statusLabel.Text = "✗ Unknown: \"" .. tostring(search.Text) .. "\""
+            return
+        end
         spawnWeapon(key, 1); feedback(key)
     end
-    spawnBtn.MouseButton1Click:Connect(spawnFromBox)
-    box.FocusLost:Connect(function(e) if e then spawnFromBox() end end)
-    local built, buttons = false, {}
+
+    -- ============ WEAPON CARDS ============
+    local built = false
+    local cardList = {}
     local function buildList()
         if built then return end
         built = true
         task.spawn(function()
             for i, wv in ipairs(weaponList) do
-                local btn = Instance.new("TextButton")
-                btn.Size = UDim2.new(1, -6, 0, 22)
-                btn.BackgroundColor3 = wv.type == "Knife" and Color3.fromRGB(48,44,70) or Color3.fromRGB(44,56,72)
-                btn.BackgroundTransparency = 0.25; btn.Font = Enum.Font.Gotham; btn.TextSize = 12
-                btn.TextColor3 = Color3.fromRGB(235,235,245); btn.TextXAlignment = Enum.TextXAlignment.Left; btn.TextTruncate = Enum.TextTruncate.AtEnd
-                btn.Text = "  " .. wv.name .. "   -  " .. wv.rarity .. " " .. wv.type
-                btn.LayoutOrder = i; btn.Parent = scroll
-                Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+                local card = Instance.new("TextButton")
+                card.Name = wv.key
+                card.Size = UDim2.new(1, 0, 0, 46)
+                card.BackgroundColor3 = C_CARD
+                card.BackgroundTransparency = 0.35
+                card.BorderSizePixel = 0
+                card.Text = ""
+                card.AutoButtonColor = false
+                card.LayoutOrder = i
+                card.Parent = scroll
+                corner(card, 8)
+                stroke(card, rcol(wv.rarity), 1, 0.7)
+
+                local img = Instance.new("ImageLabel")
+                img.Size = UDim2.fromOffset(34, 34)
+                img.Position = UDim2.fromOffset(6, 6)
+                img.BackgroundColor3 = Color3.fromRGB(42, 26, 62)
+                img.BorderSizePixel = 0
+                img.Image = ""
+                img.Parent = card
+                corner(img, 6)
+                local info = MESHES[wv.key]
+                if info and info.Meta and info.Meta.Image then
+                    pcall(function() img.Image = info.Meta.Image end)
+                end
+
+                local nameL = Instance.new("TextLabel")
+                nameL.Size = UDim2.new(1, -52, 0, 18)
+                nameL.Position = UDim2.fromOffset(46, 5)
+                nameL.BackgroundTransparency = 1
+                nameL.Font = Enum.Font.GothamBold
+                nameL.TextSize = 11
+                nameL.TextColor3 = C_TEXT
+                nameL.Text = wv.name
+                nameL.TextXAlignment = Enum.TextXAlignment.Left
+                nameL.TextTruncate = Enum.TextTruncate.AtEnd
+                nameL.Parent = card
+
+                local rarityL = Instance.new("TextLabel")
+                rarityL.Size = UDim2.new(1, -52, 0, 16)
+                rarityL.Position = UDim2.fromOffset(46, 24)
+                rarityL.BackgroundTransparency = 1
+                rarityL.Font = Enum.Font.Gotham
+                rarityL.TextSize = 10
+                rarityL.TextColor3 = rcol(wv.rarity)
+                rarityL.Text = wv.rarity .. "  •  " .. wv.type
+                rarityL.TextXAlignment = Enum.TextXAlignment.Left
+                rarityL.TextTruncate = Enum.TextTruncate.AtEnd
+                rarityL.Parent = card
+
                 local key = wv.key
-                btn.MouseButton1Click:Connect(function()
+                card.MouseButton1Click:Connect(function()
                     spawnWeapon(key, 1); feedback(key)
-                    local o = btn.BackgroundColor3; btn.BackgroundColor3 = Color3.fromRGB(0,150,100)
-                    task.delay(0.18, function() if btn.Parent then btn.BackgroundColor3 = o end end)
+                    card.BackgroundColor3 = Color3.fromRGB(60, 40, 90)
+                    task.delay(0.15, function() if card.Parent then card.BackgroundColor3 = C_CARD end end)
                 end)
-                buttons[#buttons+1] = { btn = btn, hay = (wv.key .. " " .. wv.name):lower() }
-                if i % 60 == 0 then task.wait() end
+                card.MouseEnter:Connect(function()
+                    TweenService:Create(card, TweenInfo.new(0.1), { BackgroundTransparency = 0.15 }):Play()
+                end)
+                card.MouseLeave:Connect(function()
+                    TweenService:Create(card, TweenInfo.new(0.1), { BackgroundTransparency = 0.35 }):Play()
+                end)
+
+                cardList[#cardList + 1] = { card = card, hay = (wv.key .. " " .. wv.name .. " " .. wv.rarity .. " " .. wv.type):lower() }
+                if i % 40 == 0 then task.wait() end
+            end
+            local q = search.Text:lower():gsub("^%s+", ""):gsub("%s+$", "")
+            if q ~= "" then
+                for _, c in ipairs(cardList) do c.card.Visible = c.hay:find(q, 1, true) ~= nil end
             end
         end)
     end
-    browseBtn.MouseButton1Click:Connect(function()
-        panel.Visible = not panel.Visible
-        browseBtn.Text = "Browse all weapons (" .. #weaponList .. ")  " .. (panel.Visible and "^" or "v")
-        if panel.Visible then buildList() end
+
+    -- ============ DRAG CUSTOMIZADO (touch + mouse) — header e toggle ============
+local function makeDraggable(handle, target, restoreAnchor)
+    local dragging, dragStart, dragStartPos = false, nil, nil
+    handle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            -- se o toggle foi solto longe do centro, zera o AnchorPoint pra não "pular"
+            if restoreAnchor and target.AnchorPoint ~= Vector2.zero then
+                target.AnchorPoint = Vector2.zero
+            end
+            dragging = true
+            dragStart = input.Position
+            dragStartPos = target.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
     end)
+    UIS.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            target.Position = UDim2.new(
+                dragStartPos.X.Scale, dragStartPos.X.Offset + delta.X,
+                dragStartPos.Y.Scale, dragStartPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+makeDraggable(header, main, false)
+makeDraggable(toggle, toggle, true)
+
+    -- ============ CONEXÕES ============
+    toggle.MouseButton1Click:Connect(function()
+        main.Visible = true
+        toggle.Visible = false
+        mainScale.Scale = 0.82
+        TweenService:Create(mainScale, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+            { Scale = 1 }):Play()
+    end)
+
+    closeBtn.MouseButton1Click:Connect(function()
+        if expanded then setExpanded(false) end
+        local t = TweenService:Create(mainScale, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+            { Scale = 0.85 })
+        t:Play()
+        t.Completed:Connect(function()
+            main.Visible = false
+            mainScale.Scale = 1
+            toggle.Visible = true
+        end)
+    end)
+
+    spawnBtn.MouseButton1Click:Connect(spawnFromBox)
+    search.FocusLost:Connect(function(enter) if enter then spawnFromBox() end end)
+
+    browseBtn.MouseButton1Click:Connect(function()
+        if not expanded then buildList() end
+        setExpanded(not expanded)
+    end)
+
     search:GetPropertyChangedSignal("Text"):Connect(function()
-        local q = search.Text:lower():gsub("^%s+",""):gsub("%s+$","")
-        for _, b in ipairs(buttons) do b.btn.Visible = (q == "") or (b.hay:find(q, 1, true) ~= nil) end
+        local q = search.Text:lower():gsub("^%s+", ""):gsub("%s+$", "")
+        for _, c in ipairs(cardList) do
+            c.card.Visible = (q == "") or (c.hay:find(q, 1, true) ~= nil)
+        end
     end)
 end
 function setStatus(t, color)
-    if statusLabel then statusLabel.Text = t; statusLabel.TextColor3 = color or Color3.fromRGB(190,190,205) end
+    if statusLabel then statusLabel.Text = t; statusLabel.TextColor3 = color or Color3.fromRGB(170, 150, 200) end
 end
 
 -------------------------------------------------------------------------------
